@@ -1,0 +1,219 @@
+<html>                                                                                                                                                                                                                                                                                                                                                                                                      
+	<head>
+		<title>Boogie Woogie! Mondriaan</title>
+		<link rel="stylesheet" href="css/style.css" type="text/css" media="screen" title="no title" charset="utf-8">
+		<script src="js/d3.v2.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/md5.min.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/jquery.min.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/base64.js" type="text/javascript" charset="utf-8"></script>
+
+		<style type="text/css">
+		
+		#input-text{
+			margin-top: 5px;
+			padding-top: 13px;
+			padding-bottom: 13px;
+		}
+		
+		#wrapper{
+			margin: 0 auto;
+			width: 1200px;
+			z-index: 0;
+		}
+		
+		#mondriaan{
+			margin-top: 10px;
+			margin-left: 200px;
+		}
+		
+		#canvas{
+			margin-top: -790px;
+		}
+		
+		#save{
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			margin-left: -150px;
+			margin-top: -50px;
+			width: 300px;
+			height: 100px;
+			text-align: left;
+			background-color: white;
+			border-radius: 10px;
+			-moz-box-shadow: 0 0 40px 1px #888;
+			-webkit-box-shadow: 0 0 40px 1px #888;
+			box-shadow: 0 0 40px 1px #888;
+			padding: 10px;
+			display: none;
+		}
+		.close{
+			padding: 5px;
+			padding-right: 10px;
+			font-size: 12px;
+		}
+		
+		</style>
+	</head>
+	<body>
+
+	<div class="navbar navbar-fixed-top">
+		<div class="navbar-inner">
+			<div class="container">
+				<a class="brand sigma-font" href="/">Boogie Woogie!</a>
+				<div class="nav-collapse">
+					<ul class="nav">
+						<li><a href="index.html">Home</a></li>
+						<li><a href="/about.html">Over</a></li>
+					</ul>
+					<div class="pull-right">
+						<ul class="nav">
+							<li class="inactive"><a>Generate your own:</a></li>
+							<input type="text" placeholder="Type your input..." class="input-medium" id="input-text">
+							<button class="btn" onclick="javascript:Update()" value="Generate"/>Generate!</button>
+							<button class="btn" onclick="javascript:Save()" value="Save"/>Save!</button>
+						</ul>
+					</div>	
+				</div>
+			</div>
+		</div>
+	</div>
+		
+	<div id="wrapper">
+		<div id="mondriaan"></div>
+		<img id="canvas" src="img/bw.png" width="1200" alt="Bw">
+	</div>
+		
+	<div id="save">
+		<a href="#" class="close">X</a>
+		<h2>Save this Mondriaan!</h2><br />
+		<p>Right click this link to save the SVG file</p>
+		<span id="download"></span>
+	</div>	
+		
+	</body>
+	
+<script type="text/javascript">	
+
+	// Define SVG and other constants
+	var svg = d3.select("#mondriaan").append("svg").attr("width", 800).attr("height", 800);
+	var colors = ['#695025', '#c9c8ce', '#f9d23c', '#c6322a', '#26347c', '#17184c']
+	var x = 400, y = 400;
+	
+	// String omzetten naar coordinaten
+	function GetCoordinaten(s){
+		var coordinaten = [];
+		
+		// String naar md5 en dan naar decimalen
+		s = md5(s).split('');
+		for (var i=0 ; i < s.length; i++) {
+			// ParseInt(s, 16) voor hexadecimaal naar decimaal
+		 	coordinaten.push(parseInt(s[i], 16));
+		}
+		
+		// Return coordinaten
+		return coordinaten;
+	}
+	
+	// Functie om de assen te bepalen waarover een lijn moet worden getrokken
+	function GetAxis(c){	
+		var l = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+		for (var i = 0; i < c.length; i++) {
+			var ll = l.length;
+			for (var j = 0; j < ll; j++) {
+				if (c[i] == l[j]) {
+					l = l.slice(0, j).concat(l.slice(j+1, ll));
+				}
+			}
+		}
+		return l;
+	}
+	
+	// Reken de Mondriaan opnieuw uit
+	function Update(){
+		// Get huidige waarde
+		var s = document.getElementById("input-text").value;
+		
+		// Omzetten naar coordinaten
+		var c = GetCoordinaten(s);
+		
+		// Assen berekenen uit de array
+		var u = GetAxis(c)
+		
+		// Mondriaan tekenen
+		Draw(c, u);
+	}
+	
+	// Get random nummer gebaseerd op lijstlengte
+	function Rand(l){
+		return Math.floor(Math.random()*l.length)
+	}
+	
+	// Get positief of negatief nummer 
+	function f(n) { 
+		if (Math.random() < 0.5) {
+			return n 
+		} else { 
+			return -n 
+		}
+	} 
+	
+	// Teken functie
+	function Draw(c, u){
+		var x = 0, y = 0	
+		
+		for (var i=0 ; i < 10; i++) {
+			for (var j=0 ; j < c.length; j++) {
+				// Get random number from string
+				r = Rand(c);
+				x = f(c[r]) * 25
+				r = Rand(c);
+				y = f(c[r]) * 25
+			
+				Rectangle(400 + x,  400 + y, Math.random() * 25, Math.random() * 25)
+			}
+		}
+	}
+	
+	// Teken een rechthoek
+	function Rectangle(x, y, h, w){
+		svg.append("svg:rect").
+			attr("x", x ).
+		  	attr("y", y ).
+		  	attr("height", h ).
+		  	attr("width", w ).
+			
+			// Willekeurige kleur uit het kleuren palet
+			attr("fill", function(c){
+				a = Rand(colors);
+				return colors[a];
+			});
+	}
+	
+	// Canvas opslaan als SVG met behulp van een data-url
+	function Save(){
+		
+		// Add some critical information
+		$("svg").attr({ version: '1.1' , xmlns:"http://www.w3.org/2000/svg"});
+
+		// Get SVG element
+		var svg = $("#mondriaan").html();
+		 
+		// Download URL leegmaken
+		$('#download').empty();
+		 
+		// Encodeer in Base 64
+		var b64 = Base64.encode(svg);
+		 
+		// Genereer een download URL en plak deze in de HTML
+		$("#download").append($("<a href-lang='image/svg+xml' href='data:image/svg+xml;base64,\n"+b64+"' title='file.svg'>Download</a>"));
+		$("#save").fadeIn()
+	}
+	
+	// Sluiten van het opslaan dialoog function
+	$('.close').click(function(){
+		$('#save').fadeOut()
+	})
+	
+</script>
+</html>
