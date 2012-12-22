@@ -64,7 +64,7 @@
 				<div class="nav-collapse">
 					<ul class="nav">
 						<li><a href="index.html">Home</a></li>
-						<li><a href="/about.html">Over</a></li>
+						<li><a href="/about.html">About</a></li>
 					</ul>
 					<div class="pull-right">
 						<ul class="nav">
@@ -158,19 +158,26 @@
 		}
 	} 
 	
+	function large(c) {
+		if (Math.random() < 0.005) {
+			return 1
+		} else { 
+			return Math.random()* 3
+		}
+	}
+	
 	// Teken functie
 	function Draw(c, u){
 		var x = 0, y = 0	
 		
-		for (var i=0 ; i < 10; i++) {
+		for (var i=0 ; i < 50; i++) {
 			for (var j=0 ; j < c.length; j++) {
 				// Get random number from string
-				r = Rand(c);
-				x = f(c[r]) * 25
-				r = Rand(c);
-				y = f(c[r]) * 25
 			
-				Rectangle(400 + x,  400 + y, Math.random() * 25, Math.random() * 25)
+				x = f(c[Rand(c)]) * 25; 
+				y = f(c[Rand(c)]) * 25;
+			
+				Rectangle(400 + x,  400 + y, Math.random() * 25 * large(c), Math.random() * 25 * large(c))
 			}
 		}
 	}
