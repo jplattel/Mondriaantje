@@ -69,8 +69,8 @@
 					<div class="pull-right">
 						<ul class="nav">
 							<li class="inactive"><a>Generate your own:</a></li>
-							<input type="text" placeholder="Type your input..." class="input-medium" id="input-text">
-							<button class="btn" onclick="javascript:Update()" value="Generate"/>Generate!</button>
+							<input type="text" placeholder="Type your input..." class="seed input-medium" id="input-text">
+							<button class="btn" onclick="javascript:Paint(s, r, l)" value="Generate"/>Generate!</button>
 							<button class="btn" onclick="javascript:Save()" value="Save"/>Save!</button>
 						</ul>
 					</div>	
@@ -81,11 +81,11 @@
 		
 	<div id="wrapper">
 		<div id="mondriaan"></div>
-		<img id="canvas" src="img/bw.png" width="1200" alt="Bw">
+		<img id="canvas" src="img/bw.png" width="1200" alt="boogie woogie">
 	</div>
 		
 	<div id="save">
-		<a href="#" class="close">X</a>
+		<a href="#" class="close">&times;</a>
 		<h2>Save this Mondriaan!</h2><br />
 		<p>Right click this link to save the SVG file</p>
 		<span id="download"></span>
@@ -97,127 +97,160 @@
 
 	// Define SVG and other constants
 	var svg = d3.select("#mondriaan").append("svg").attr("width", 800).attr("height", 800);
-	var colors = ['#695025', '#c9c8ce', '#f9d23c', '#c6322a', '#26347c', '#17184c']
-	var x = 400, y = 400;
+	var colors = ['#695025', '#f9d23c', '#c6322a', '#26347c', '#17184c', '#c9c8ce', '#ffffff'];
+	var s = [];
+	var r = [];
+	var l = 48;
+	var v = 0;
 	
-	// String omzetten naar coordinaten
-	function GetCoordinaten(s){
-		var coordinaten = [];
+	// Paint the canvas with Mondriaan 
+	function Paint(s, r, l) {
+		s, r = Seed(s, r, l); // Return full seeds
+		DrawBackground(s,r);
+		DrawLanes(s,r);
 		
-		// String naar md5 en dan naar decimalen
-		s = md5(s).split('');
-		for (var i=0 ; i < s.length; i++) {
-			// ParseInt(s, 16) voor hexadecimaal naar decimaal
-		 	coordinaten.push(parseInt(s[i], 16));
-		}
-		
-		// Return coordinaten
-		return coordinaten;
 	}
 	
-	// Functie om de assen te bepalen waarover een lijn moet worden getrokken
-	function GetAxis(c){	
-		var l = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-		for (var i = 0; i < c.length; i++) {
-			var ll = l.length;
-			for (var j = 0; j < ll; j++) {
-				if (c[i] == l[j]) {
-					l = l.slice(0, j).concat(l.slice(j+1, ll));
+	// Go Piet! 
+	function Seed(s, r, l){
+
+		// MD5 from input and then cat to 0-16
+		var str = md5($('.seed').val()).split('');
+		for (var i=0 ; i < str.length; i++) { s.push(parseInt(str[i], 16)) }
+		
+		// Generate color seed
+		for (var i=0; i <= l; i++) { var a = i / 3; r.push(parseInt((s[a.toFixed()] / 4).toFixed())) }
+
+		// Return seeds
+		return s, r
+	}
+	
+	// Draw a rectangle
+	function Rectangle(x, y, h, w, c){
+		
+		// Draw SVG Rect with D3
+		 svg.append("svg:rect")
+			.attr("x", x )
+			.attr("y", y )
+			.attr("height", h )
+			.attr("width", w )
+			.attr("fill", c);
+	}
+	
+	function Pole(r, s, i){
+		if (r[i] >= 3){
+			return -s[i] * 5
+		} else if (r[i] <= 1) {
+			return -s[i] * 4
+		} else {
+			return s[i] * 4
+		}
+		
+	}
+
+	// Draw seed-based background
+	function DrawBackground(s, r){
+		var m = 300;
+		var c = 5;
+		
+		for (var i=0; i < 22; i++) {
+			
+			// Pole the axis 
+			d = Pole(r, s, i);
+
+			// White or gray
+			if (i % 2 == 1){
+				c = 6;
+			} else {
+				c = 5;
+			}
+			
+			// 4 Axis randomness based upon the seed
+			Rectangle(m + (d * 3), m + d * 3, r[s[i]] * 40, r[s[i]] * 40, colors[c])
+			Rectangle(m + (d * 3), m - d * 3, r[s[i]] * 50, r[s[i]] * 50, colors[c])
+
+			Rectangle(m - (d * 3), m + d * 3, r[s[i]] * 40, r[s[i]] * 40, colors[c])
+			Rectangle(m - (d * 3), m - d * 3, r[s[i]] * 50, r[s[i]] * 50, colors[c])
+
+			Rectangle(m, m + (d * 5), r[s[i]] * 50, r[s[i]] * 50, colors[c])
+			Rectangle(m, m - (d * 5), r[s[i]] * 50, r[s[i]] * 50, colors[c])
+
+			Rectangle(m + (d * 5), m, r[s[i]] * 50, r[s[i]] * 50, colors[c])
+			Rectangle(m - (d * 5), m, r[s[i]] * 50, r[s[i]] * 50, colors[c])
+			
+		};
+
+	}
+	
+	
+	// Draw seed-based rectangles
+
+
+	// Draw seed-based lanes
+	function DrawLanes(s, r){
+		var m = 100;
+		var n = 100;
+		var d = 16;
+		var _c = 0; // Last color to prevent duplicates, thanks to Joris Blaak
+		
+		// Six lanes per axis
+		for (var k=0; k < 6; k++) {
+			m = m + s[k] * 9
+			n = n + s[k] * 12
+			
+			// Widths
+			if (k <= 2) { d = 24;} else if (k >= 4) { d = 20 } else { d = 16}
+			
+			// Vertical lanes
+			for (var i=0; i < r.length; i++) {
+				v = v + r[i];
+				if (v > 15){ v = 0; }
+				if (_c == (v / 4).toFixed()){
+					_c = v / 4 + 1;
+				} else {
+					_c = (v / 4).toFixed();
 				}
-			}
-		}
-		return l;
-	}
-	
-	// Reken de Mondriaan opnieuw uit
-	function Update(){
-		// Get huidige waarde
-		var s = document.getElementById("input-text").value;
-		
-		// Omzetten naar coordinaten
-		var c = GetCoordinaten(s);
-		
-		// Assen berekenen uit de array
-		var u = GetAxis(c)
-		
-		// Mondriaan tekenen
-		Draw(c, u);
-	}
-	
-	// Get random nummer gebaseerd op lijstlengte
-	function Rand(l){
-		return Math.floor(Math.random()*l.length)
-	}
-	
-	// Get positief of negatief nummer 
-	function f(n) { 
-		if (Math.random() < 0.5) {
-			return n 
-		} else { 
-			return -n 
-		}
-	} 
-	
-	function large(c) {
-		if (Math.random() < 0.005) {
-			return 1
-		} else { 
-			return Math.random()* 3
-		}
-	}
-	
-	// Teken functie
-	function Draw(c, u){
-		var x = 0, y = 0	
-		
-		for (var i=0 ; i < 50; i++) {
-			for (var j=0 ; j < c.length; j++) {
-				// Get random number from string
+				
+				Rectangle(m, 16 * i, d, d, colors[_c]);				
+			}	
 			
-				x = f(c[Rand(c)]) * 25; 
-				y = f(c[Rand(c)]) * 25;
-			
-				Rectangle(400 + x,  400 + y, Math.random() * 25 * large(c), Math.random() * 25 * large(c))
+			// Horizontal lanes
+			for (var i=0; i < r.length; i++) {
+				v = v + r[i];
+				if (v > 15){ v = 0 }
+				if (_c == (v / 4).toFixed()){
+					_c = v / 4 + 1;
+				} else {
+					_c = (v / 4).toFixed();
+				}
+				
+				Rectangle(16 * i, n, d, d, colors[(v / 4).toFixed()]);				
 			}
 		}
 	}
+
 	
-	// Teken een rechthoek
-	function Rectangle(x, y, h, w){
-		svg.append("svg:rect").
-			attr("x", x ).
-		  	attr("y", y ).
-		  	attr("height", h ).
-		  	attr("width", w ).
-			
-			// Willekeurige kleur uit het kleuren palet
-			attr("fill", function(c){
-				a = Rand(colors);
-				return colors[a];
-			});
-	}
-	
-	// Canvas opslaan als SVG met behulp van een data-url
+	// Save canvas to a data-url
 	function Save(){
 		
-		// Add some critical information
+		// Add critical informations
 		$("svg").attr({ version: '1.1' , xmlns:"http://www.w3.org/2000/svg"});
 
 		// Get SVG element
 		var svg = $("#mondriaan").html();
 		 
-		// Download URL leegmaken
+		// Empty download URL
 		$('#download').empty();
 		 
-		// Encodeer in Base 64
+		// Encode in Base 64
 		var b64 = Base64.encode(svg);
 		 
-		// Genereer een download URL en plak deze in de HTML
+		// Generate Download URL and append to HTML
 		$("#download").append($("<a href-lang='image/svg+xml' href='data:image/svg+xml;base64,\n"+b64+"' title='file.svg'>Download</a>"));
 		$("#save").fadeIn()
 	}
 	
-	// Sluiten van het opslaan dialoog function
+	// Close function for the save dialog
 	$('.close').click(function(){
 		$('#save').fadeOut()
 	})

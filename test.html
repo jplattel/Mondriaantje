@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Canvas 3D Renderer</title>
+<script>
+window.onload = function(){
+
+var canvas = document.createElement( 'canvas' );
+canvas.width = 1200;
+canvas.height = 1200;
+document.body.appendChild( canvas );
+var scene = new Scene();
+var renderer = new Renderer( scene, {
+canvas: canvas,
+});
+
+var mesh = new Mesh({
+position: new Vector3D( 0, -1, 0 )
+});
+mesh.load( 'meshes/marine.json' );
+var a = mesh.clone();
+console.log( a );
+scene.add( mesh );
+var pinkLight = new Light({
+position: new Vector3D( 0, 0, -20 ),
+color: new Color( 255, 100, 0 ),
+});
+scene.add( pinkLight );
+var greenLight = new Light({
+position: new Vector3D( 0, -20, 0 ),
+color: new Color( 200, 255, 150 ),
+});
+scene.add( greenLight );
+
+setTimeout( function(){
+renderer.render();
+mesh.rotation.x += 0.005;
+mesh.rotation.y += 0.007;
+mesh.rotation.z += 0.005;
+}, 150 );
+
+}
+function Scene(){
+
+var scope = this;
+
+this.objects = [];
+this.lights = [];
+
+this.add = function( object ){
+
+if( object instanceof Mesh ){
+scope.objects.push( object );
+}
+else if( object instanceof Light ){
+scope.lights.push( object );
+}
+}
+
+this.remove = function( object ){
+
+if( object instanceof Mesh ){
+var target = scope.objects;
+}
+else if( object instanceof Light ){
+var target = scope.lights;
+}
+var index = target.indexOf( object );
+target.splice( index, 1 );
+
+}
+
+}
+function Renderer( scene, options ){
+
+var scope = this;
+
+for( var i in options ){
+scope[ i ] = options[ i ];
+}
+
+this.canvas = scope.canvas || document.createElement( 'canvas' );
+
+var context = scope.canvas.getContext( '2d' );
+this.render = function(){
+
+context.clearRect( 0, 0, scope.canvas.width, scope.canvas.height );
+
+for( var i = 0; i < scene.objects.length; i ++ ){
+
+var object = scene.objects[ i ];
+
+object.updateMatrix();
+
+object.faces.sort( function( a, b ){
+
+var v1 = object.matrix.applyToVector( object.vertexes[ a[0] ] ).z;
+var v2 = object.matrix.applyToVector( object.vertexes[ b[0] ] ).z;
+
+return( v2 - v1 );
+
+} );
+
+for( var j = 0; j < object.faces.length; j += 1 ){
+
+var face = object.faces[ j ];
+var normal = new Vector3D();
+
+context.beginPath();
+for( var k = 0; k < face.length; k ++ ){
+var v = object.matrix.applyToVector( object.vertexes[ face[ k ] ] );
+v.x = v.x * scope.canvas.width*.5 + scope.canvas.width*.5;
+v.y = scope.canvas.height - (v.y * scope.canvas.height*.5 + scope.canvas.height*.5);
+//v.z = v.z * 300 + 300;
+normal = normal.addVector( object.matrix.applyToVector( object.normals[ face[ k ] ] ) );
+
+context.lineTo( v.x, v.y );
+}
+context.closePath();
+
+var camera = new Vector3D( 0, 0, -1 );
+if( normal.angle( camera ) > 0 ){
+var fillColor = new Color();
+for( var k = 0; k < scene.lights.length; k ++ ){
+var light = scene.lights[ k ];
+
+var angleLight = normal.angle( light.position );
+var color = light.color.clone();
+color.a = clamb( angleLight * light.intensity, 0, 1 );
+fillColor = fillColor.add( color );
+
+}
+context.stroke();
+fillColor.setFillStyle( context );
+context.fill();
+}
+
+}
+
+}
+}
+}
+function Mesh( options ){
+
+var scope = this;
+
+for( var i in options ){
+scope[ i ] = options[ i ];
+}
+
+this.position = scope.position || new Vector3D();
+this.scale = scope.scale || new Vector3D( 1, 1, 1 );
+this.rotation = scope.rotation || new Vector3D();
+this.color = scope.color || new Color();
+
+this.matrix = new Matrix();
+this.vertexes = [];
+this.faces = [];
+this.normals = [];
+this.clone = function(){
+var mesh = new Mesh({
+position: scope.position.clone(),
+scale: scope.scale.clone(),
+rotation: scope.rotation.clone(),
+color: scope.color.clone(),
+});
+mesh.matrix = scope.matrix.clone();
+for( var i = 0; i < scope.vertexes.length; i ++ ){
+mesh.vertexes.push( scope.vertexes[ i ].clone() );
+}
+for( var i = 0; i < scope.faces.length; i ++ ){
+mesh.faces.push( [ scope.faces[ i ][0], scope.faces[ i ][1],scope.faces[ i ][2] ] );
+}
+for( var i = 0; i < scope.normals.length; i ++ ){
+mesh.normals.push( scope.normals[ i ].clone() );
+}
+return mesh;
+}
+
+this.load = function( path ){
+
+loadFile( path, function( str ){
+
+var mesh = JSON.parse( str );
+
+for( var i = 0; i < mesh.vertexPositions.length; i += 3 ){
+
+var x = mesh.vertexPositions[ i ];
+var y = mesh.vertexPositions[ i+1 ];
+var z = mesh.vertexPositions[ i+2 ];
+
+scope.vertexes.push( new Vector3D( x, y, z ) );
+
+}
+
+for( var i = 0; i < mesh.indices.length; i += 3 ){
+
+var f1 = mesh.indices[ i ];
+var f2 = mesh.indices[ i + 1 ];
+var f3 = mesh.indices[ i + 2 ];
+
+scope.faces.push( [ f1, f2, f3 ] );
+
+}
+
+for( var i = 0; i < mesh.vertexNormals.length; i += 3 ){
+
+var x = mesh.vertexNormals[ i ];
+var y = mesh.vertexNormals[ i+1 ];
+var z = mesh.vertexNormals[ i+2 ];
+
+scope.normals.push( new Vector3D( x, y, z ) );
+
+}
+
+}, true );
+
+}
+
+this.updateMatrix = function(){
+
+scope.matrix = new Matrix( //position
+1, 0, 0, scope.position.x,
+0, 1, 0, scope.position.y,
+0, 0, 1, scope.position.z
+);
+
+scope.matrix = scope.matrix.add( new Matrix( //rotation x
+1, 0, 0, 0,
+0, Math.cos( scope.rotation.x ), -Math.sin( scope.rotation.x ), 0,
+0, Math.sin( scope.rotation.x ), Math.cos( scope.rotation.x ), 0
+) );
+
+scope.matrix = scope.matrix.add( new Matrix( //rotation y
+Math.cos( scope.rotation.y ), 0, Math.sin( scope.rotation.y ), 0,
+0, 1, 0, 0,
+-Math.sin( scope.rotation.y ), 0, Math.cos( scope.rotation.y ), 0
+) );
+
+scope.matrix = scope.matrix.add( new Matrix( //rotation z
+Math.cos( scope.rotation.z ), Math.sin( scope.rotation.z ), 0, 0,
+-Math.sin( scope.rotation.z ), Math.cos( scope.rotation.z ), 0, 0,
+0, 0, 1, 0
+) );
+
+scope.matrix = scope.matrix.add( new Matrix( //scale
+scope.scale.x, 0, 0, 0,
+0, scope.scale.y, 0, 0,
+0, 0, scope.scale.z, 0
+) );
+
+}
+
+}
+function Vector3D( x, y, z ){
+var scope = this;
+
+this.x = x || 0;
+this.y = y || 0;
+this.z = z || 0;
+this.clone = function(){
+
+return new Vector3D( scope.x, scope.y, scope.z );
+
+}
+
+this.getLength = function(){
+
+return( Math.sqrt( Math.pow(scope.x, 2) + Math.pow(scope.y, 2) + Math.pow(scope.z, 2) ) );
+
+}
+this.setLength = function( num ){
+
+var d = scope.getLength();
+
+var x1 = scope.x / d * num;
+var y1 = scope.y / d * num;
+var z1 = scope.z / d * num;
+
+return new Vector3D( x1, y1, z1 );
+
+}
+
+this.multiply = function( num ){
+
+var x1 = scope.x * num;
+var y1 = scope.y * num;
+var z1 = scope.z * num;
+
+return new Vector3D( x1, y1, z1 );
+
+}
+
+this.devide = function( num ){
+
+var x1 = scope.x / num;
+var y1 = scope.y / num;
+var z1 = scope.z / num;
+
+return new Vector3D( x1, y1, z1 );
+
+}
+this.addVector = function( vector ){
+
+var x1 = scope.x + vector.x;
+var y1 = scope.y + vector.y;
+var z1 = scope.z + vector.z;
+
+return new Vector3D( x1, y1, z1 );
+
+}
+
+this.calculateDistance = function( vector ){
+
+var dx = vector.x - scope.x;
+var dy = vector.y - scope.y;
+var dz = vector.z - scope.z;
+
+return Math.sqrt( dx*dx + dy*dy + dz*dz );
+
+}
+
+this.dot = function( vector ){
+
+return scope.x*vector.x + scope.y*vector.y + scope.z*vector.z;
+
+}
+this.angle = function( vector ){
+return scope.dot( vector ) / scope.getLength() / vector.getLength();
+}
+
+}
+function Matrix( a, b, c, d, e, f, g, h, i, j, k, l ){
+
+var scope = this;
+
+this.m = [
+a || 1, b || 0, c || 0, d || 0,
+e || 0, f || 1, g || 0, h || 0,
+i || 0, j || 0, k || 1, l || 0,
+];
+
+this.clone = function(){
+
+var m = scope.m;
+
+return new Matrix( m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11] );
+
+};
+this.add = function( matrix ){
+
+var m0 = scope.m;
+var m1 = matrix.m;
+
+var m = [
+(m0[0]*m1[0] + m0[1]*m1[4] + m0[ 2]*m1[8]), (m0[0]*m1[1] + m0[1]*m1[5] + m0[ 2]*m1[9]), (m0[0]*m1[2] + m0[1]*m1[6] + m0[ 2]*m1[10]), (m0[ 3]+m1[ 3]),
+(m0[4]*m1[0] + m0[5]*m1[4] + m0[ 6]*m1[8]), (m0[4]*m1[1] + m0[5]*m1[5] + m0[ 6]*m1[9]), (m0[4]*m1[2] + m0[5]*m1[6] + m0[ 6]*m1[10]), (m0[ 7]+m1[ 7]),
+(m0[8]*m1[0] + m0[9]*m1[4] + m0[10]*m1[8]), (m0[8]*m1[1] + m0[9]*m1[5] + m0[10]*m1[9]), (m0[8]*m1[2] + m0[9]*m1[6] + m0[10]*m1[10]), (m0[11]+m1[11]),
+];
+
+return new Matrix( m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11] );
+
+};
+
+this.applyToVector = function( vertex ){
+
+var x = vertex.x * scope.m[0] + vertex.y * scope.m[1] + vertex.z * scope.m[ 2] + scope.m[ 3];
+var y = vertex.x * scope.m[4] + vertex.y * scope.m[5] + vertex.z * scope.m[ 6] + scope.m[ 7];
+var z = vertex.x * scope.m[8] + vertex.y * scope.m[9] + vertex.z * scope.m[10] + scope.m[11];
+
+return new Vector3D( x, y, z );
+
+};
+
+}
+function Color( r, g, b, a ){
+var scope = this;
+this.r = r || 0;
+this.g = g || 0;
+this.b = b || 0;
+this.a = a || 1;
+this.clone = function(){
+return new Color( scope.r, scope.g, scope.b, scope.a );
+}
+this.setFillStyle = function( context ){
+var r = clamb( Math.round( scope.r ), 0, 255 );
+var g = clamb( Math.round( scope.g ), 0, 255 );
+var b = clamb( Math.round( scope.b ), 0, 255 );
+context.fillStyle = 'rgb( '+r+', '+g+', '+b+' )';
+
+}
+this.multiply = function( num ){
+var r = scope.r * num;
+var g = scope.g * num;
+var b = scope.b * num;
+return new Color( r, g, b );
+}
+this.add = function( color ){
+var r = color.r*color.a + scope.r*(1 - color.a);
+var g = color.g*color.a + scope.g*(1 - color.a);
+var b = color.b*color.a + scope.b*(1 - color.a);
+return new Color( r, g, b );
+}
+}
+function Light( options ){
+var scope = this;
+for( var i in options ){
+scope[ i ] = options[ i ];
+}
+
+this.position = scope.position || new Vector3D();
+this.rotation = scope.rotation || new Vector3D();
+this.color = scope.color || new Color();
+this.intensity = scope.intensity || 1;
+this.clone = function(){
+return new Light({
+position: scope.position.clone(),
+rotation: scope.rotation.clone(),
+color: scope.color.clone(),
+intensity: scope.intensity, 
+});
+}
+}
+function loadFile( file, callback, noCache ) {
+
+var request = new XMLHttpRequest();
+request.onreadystatechange = function() {
+
+if (request.readyState == 1) {
+request.send();
+}
+else if (request.readyState == 4) {
+if (request.status == 200) {
+callback(request.responseText);
+}
+else if (request.status == 404) {
+console.log( 'File "' + file + '" does not exist.' );
+}
+else {
+console.log( 'XHR error ' + request.status + '.' );
+}
+}
+
+};
+
+if (noCache) file += '?' + (new Date()).getTime();
+request.open('GET', file, true);
+
+}
+function clamb( x, min, max ){
+return ( x < min ) ? min : ( ( x > max ) ? max : x );
+}
+</script>
+</head>
+<body>
+</body>
+</html>
