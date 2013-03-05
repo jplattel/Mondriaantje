@@ -1,5 +1,4 @@
-<html>                                                                                                                                                                                                                                                                                                                                                                                                      
-	<head>
+<html>                                                                                                                           	<head>
 		<title>Boogie Woogie! Mondriaan</title>
 		<link rel="stylesheet" href="css/style.css" type="text/css" media="screen" title="no title" charset="utf-8">
 		<script src="js/d3.v2.js" type="text/javascript" charset="utf-8"></script>
@@ -70,8 +69,9 @@
 						<ul class="nav">
 							<li class="inactive"><a>Generate your own:</a></li>
 							<input type="text" placeholder="Type your input..." class="seed input-medium" id="input-text">
-							<button class="btn" onclick="javascript:Paint(s, r, l)" value="Generate"/>Generate!</button>
+							<button class="btn paint" onclick="javascript:Paint(s, r, l)" value="Generate"/>Generate!</button>
 							<button class="btn" onclick="javascript:Save()" value="Save"/>Save!</button>
+							<button class="btn reset" onclick="javascript:Reset()" value="Reset"/>Reset!</button>
 						</ul>
 					</div>	
 				</div>
@@ -96,19 +96,29 @@
 <script type="text/javascript">	
 
 	// Define SVG and other constants
-	var svg = d3.select("#mondriaan").append("svg").attr("width", 800).attr("height", 800);
-	var colors = ['#695025', '#f9d23c', '#c6322a', '#26347c', '#17184c', '#c9c8ce', '#ffffff'];
-	var s = [];
-	var r = [];
-	var l = 48;
-	var v = 0;
+	var svg = d3.select("#mondriaan").append("svg").attr("width", 800).attr("height", 800),
+	    colors = ['#695025', '#f9d23c', '#c6322a', '#26347c', '#17184c', '#c9c8ce', '#ffffff'],
+        s = [],
+	    r = [],
+	    l = 48,
+	    v = 0;
 	
 	// Paint the canvas with Mondriaan 
 	function Paint(s, r, l) {
 		s, r = Seed(s, r, l); // Return full seeds
 		DrawBackground(s,r);
+		DrawRectangles(s,r);
 		DrawLanes(s,r);
-		
+		$('.paint').attr("disabled", "disabled");
+	}
+
+	function Reset(){
+		$('svg').empty();
+		$('.paint').removeAttr("disabled");
+		$('.seed').attr("value", "");
+		$('.seed').focus();
+  		s = [];
+	    r = [];
 	}
 	
 	// Go Piet! 
@@ -116,7 +126,7 @@
 
 		// MD5 from input and then cat to 0-16
 		var str = md5($('.seed').val()).split('');
-		for (var i=0 ; i < str.length; i++) { s.push(parseInt(str[i], 16)) }
+		for (var i=0 ; i < str.length; i++) { s.push( parseInt(str[i], 16)) }
 		
 		// Generate color seed
 		for (var i=0; i <= l; i++) { var a = i / 3; r.push(parseInt((s[a.toFixed()] / 4).toFixed())) }
@@ -127,7 +137,6 @@
 	
 	// Draw a rectangle
 	function Rectangle(x, y, h, w, c){
-		
 		// Draw SVG Rect with D3
 		 svg.append("svg:rect")
 			.attr("x", x )
@@ -136,95 +145,108 @@
 			.attr("width", w )
 			.attr("fill", c);
 	}
-	
+
+	// Mirror the the integer in the seed
 	function Pole(r, s, i){
-		if (r[i] >= 3){
-			return -s[i] * 5
-		} else if (r[i] <= 1) {
-			return -s[i] * 4
-		} else {
-			return s[i] * 4
-		}
-		
+		if (r[i] >= 3){ return -s[i] * 5 } 
+		else if (r[i] <= 1) { return -s[i] * 4 } 
+		else { return s[i] * 4 }
 	}
 
 	// Draw seed-based background
 	function DrawBackground(s, r){
-		var m = 300;
-		var c = 5;
+		// Starting point and color
+		var m = 300,
+		    c = 5;
 		
+		// Draw 22 times 8 rectangles
 		for (var i=0; i < 22; i++) {
 			
-			// Pole the axis 
+			// Pole the axis based on the random seed
 			d = Pole(r, s, i);
 
 			// White or gray
-			if (i % 2 == 1){
-				c = 6;
-			} else {
-				c = 5;
-			}
+			if (i % 2 == 1) { c = 6; } else { c = 5; }
 			
 			// 4 Axis randomness based upon the seed
-			Rectangle(m + (d * 3), m + d * 3, r[s[i]] * 40, r[s[i]] * 40, colors[c])
-			Rectangle(m + (d * 3), m - d * 3, r[s[i]] * 50, r[s[i]] * 50, colors[c])
+			Rectangle(m + (d * 3), m + d * 3, r[s[i]] * 20, r[s[i]] * 40, colors[c])
+			Rectangle(m + (d * 3), m - s[i] * 2, r[s[i]] * 52, r[s[i]] * 50, colors[c])
+			Rectangle(m - (d * 3), m + d * 3, r[s[i]] * 43, r[s[i]] * r[s[i]], colors[c])
+			Rectangle(m - (d * 4), m - s[d] * 3, r[s[i]] * 45, r[s[i]] * 50, colors[c])
 
-			Rectangle(m - (d * 3), m + d * 3, r[s[i]] * 40, r[s[i]] * 40, colors[c])
-			Rectangle(m - (d * 3), m - d * 3, r[s[i]] * 50, r[s[i]] * 50, colors[c])
-
-			Rectangle(m, m + (d * 5), r[s[i]] * 50, r[s[i]] * 50, colors[c])
-			Rectangle(m, m - (d * 5), r[s[i]] * 50, r[s[i]] * 50, colors[c])
-
-			Rectangle(m + (d * 5), m, r[s[i]] * 50, r[s[i]] * 50, colors[c])
-			Rectangle(m - (d * 5), m, r[s[i]] * 50, r[s[i]] * 50, colors[c])
-			
+			Rectangle(m, m + (d * 5), r[s[i]] * r[s[i]] * r[s[i]], r[s[i]] * 50, colors[c])
+			Rectangle(m, m - (d * 5), r[s[i]] * 40, r[s[i]] * 50, colors[c])
+			Rectangle(m + (d * 5), m, r[s[i]] * r[s[i]], r[s[i]] * 50, colors[c])
+			Rectangle(m - (d * 5), m, r[s[i]] * 50, r[s[i]] * 50, colors[c])	
 		};
-
 	}
 	
-	
 	// Draw seed-based rectangles
+	function DrawRectangles(s, r){
+		m = 100;
+		// Draw 32 rectangles
+		for (var i=0; i < 8; i++) {
+			Rectangle(m + 100 + s[i+5] * 20, m + s[i+4] * 15, s[i+2] * 5, s[i] * 7, colors[i % 5]);
+			Rectangle(m + 160 + s[i-1] * 34, m + s[i+12] * 19, s[i+14] * 12, s[i] * 12, colors[i % 4]);
+			Rectangle(m + 130 + s[i+2] * 17, m + s[i+18] * 18, s[i+14] * 7, s[i] * 8, colors[i % 5]);
+			Rectangle(m + 140 + s[i+3] * 15, m + s[i+14] * 24, s[i+14] * 14, s[i] * 8, colors[i % 6]);
 
+			Rectangle(m + 150 + s[i-1] * 34, m + s[i+13] * 28, s[i+14] * 6, s[i] * 4, colors[i % 3]);
+			Rectangle(m + 144 + s[i+5] * 20, m + s[i+4] * 30, s[i+2] * 5, s[i] * 4, colors[i % 5]);
+			Rectangle(m + 133 + s[i+2] * 17, m + s[i+17] * 21, s[i+14] * 7, s[i] * 4, colors[i % 5]);
+			Rectangle(m + 112 + s[i+3] * 15, m + s[i+4] * 24, s[i+14] * 9, s[i] * 5, colors[i % 6]);
+		}
+	}
 
 	// Draw seed-based lanes
 	function DrawLanes(s, r){
-		var m = 100;
-		var n = 100;
-		var d = 16;
-		var _c = 0; // Last color to prevent duplicates, thanks to Joris Blaak
+
+		var m = 100, // Starting x axis
+		    n = 100, // Starting y axis 
+			d = 17; // Size (width)
+		   _c = 0; // Last color to prevent duplicates
 		
 		// Six lanes per axis
 		for (var k=0; k < 6; k++) {
-			m = m + s[k] * 9
-			n = n + s[k] * 12
-			
-			// Widths
-			if (k <= 2) { d = 24;} else if (k >= 4) { d = 20 } else { d = 16}
-			
+			m = m + s[k] * 10 // Get indices and multiply to get the axis coordinates
+			n = n + s[k] * 12 // For both x and y
+				
 			// Vertical lanes
 			for (var i=0; i < r.length; i++) {
-				v = v + r[i];
+
+				// V is just an extra variable
+				v = v + r[k];
+				_c = (parseInt(_c) + k / 3).toFixed();
+
+				// Start randomness based on seed
 				if (v > 15){ v = 0; }
-				if (_c == (v / 4).toFixed()){
-					_c = v / 4 + 1;
-				} else {
-					_c = (v / 4).toFixed();
-				}
+				if (_c > 4){ _c = 0; }
+				if (_c == (v / 4).toFixed()){ _c = v / 3 + 1; } 
+				else { _c = (v / 4).toFixed(); }
+				if (_c == _c + 1){ _c = (parseInt(_c) + 2).toFixed(); } 
+				else if (_c > 4 ){ _c = 0; } 
+				else { _c = (parseInt(_c) + 1).toFixed(); }	
 				
+				// Draw rectangle
 				Rectangle(m, 16 * i, d, d, colors[_c]);				
 			}	
 			
 			// Horizontal lanes
 			for (var i=0; i < r.length; i++) {
-				v = v + r[i];
-				if (v > 15){ v = 0 }
-				if (_c == (v / 4).toFixed()){
-					_c = v / 4 + 1;
-				} else {
-					_c = (v / 4).toFixed();
-				}
+
+				// V is just an extra variable
+				v = v + r[k];
+
+				// Start randomness based on seed
+				if (v > 14){ v = 0 }
+				if (_c == (v / 4).toFixed()){ _c = v / 3 + 1; }
+				else if (_c == _c -1) { _c = (v / 4).toFixed(); }
+				else if (_c == _c + 1) { _c = (parseInt(_c) + 2).toFixed(); }
+				else if (_c > 4 ){ _c = 0; } 
+				else { _c = (parseInt(_c) + 1).toFixed(); }	
 				
-				Rectangle(16 * i, n, d, d, colors[(v / 4).toFixed()]);				
+				// Draw rectangles
+				Rectangle(16 * i, n, d, d, colors[_c]);				
 			}
 		}
 	}
